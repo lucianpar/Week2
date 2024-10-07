@@ -1,0 +1,174 @@
+---
+title: "Week 2 In class"
+format: html
+editor: visual
+---
+
+```{r}
+rm(list = ls()) #clears working environment 
+library(sf)
+library(tidyverse)
+install.packages("spData")
+library(spData)
+library(tmap)
+
+```
+
+```{r}
+london_point <- st_point()
+london_geom<- st_sfc(london_point, crs = 4326)
+
+london_attributes <- data.frame(
+  name = "London",
+  temperature = 25,
+  date = as.Date("2017-06-21")
+)
+
+london_sf <- st_sf(london_attributes, geometry = london_geom)
+
+class(london_sf)
+#check
+
+st_crs(london_sf)$IsGeographic # check 
+
+
+```
+
+```{r}
+world<- spData::world
+
+names(world)
+
+summary(world$lifeExp)
+```
+
+```{r}
+world_df<- world %>%
+  select (-geom) #normally would remove column, but in sf geomety is important and wont
+
+colnames(world_df)
+```
+
+```{r}
+world_df <- st_drop_geometry(world) #command to drop geom
+
+class(world_df)
+```
+
+```{r}
+## reprojecting data 
+
+london_proj <- data.frame(x = 53000, y = 18000) %>% 
+  st_as_sf(coords = c("x","y"), crs = "EPSG:27700") #st location of london, piped into sf with coord system - x column and y column stoor coords, what coord ref system data is in 
+
+st_crs(london_proj) == st_crs(london_sf) # check our crs, important routinely - not the same
+
+london_sf_transform <- st_transform(london_sf, crs = st_crs(london_proj)) #best to directly call objects crs rather than hardcodding 
+
+
+```
+
+```{r}
+if(st_crs(london_sf_transform) == st_crs(london_proj)) {
+  print("coordinate reference systems of datasets match")
+} else {
+  error("coordinate reference systems do not match ")
+} # defining conditional check 
+```
+
+```{r}
+tm_shape(world, projection = 8857) + 
+  tm_fill(col = "area_km2")
+```
+
+```{r}
+tm_shape(world, projection = 3395) + #mercador projection 
+  tm_fill(col = "area_km2")
+```
+
+```{r}
+world %>%
+  select(name_long,, pop)
+
+world %>% 
+  select(subregion)
+
+world %>% 
+  select(name = name_long, population = pop)
+```
+
+```{r}
+world1 <- world %>%
+  filter(area_km2 < 1000) #filtering in data frame 
+
+
+```
+
+```{r}
+#pipe chain of sf commands 
+world %>% 
+  filter(continent == "Asia") %>% 
+  select(name_long, continent, lifeExp) %>% # gives us all countries in asia and life exp 
+  slice_max(lifeExp)#picks row w max value of var that is passed in 
+```
+
+```{r}
+world %>%
+  group_by(continent)%>% 
+  summarize(population = sum(pop, na.rm = TRUE))  %>%
+  st_drop_geometry()
+```
+
+```{r}
+#Joins with vector attributes 
+
+coffee_data <- spData::coffee_data
+
+nrow(coffee_data) #comparing # of countries in coffee data to world data 
+```
+
+```{r}
+world_coffee<-left_join(world, coffee_data, by = "name_long")
+```
+
+```{r}
+tm_shape(world_coffee) + 
+  tm_fill(col = "coffee_production_2017")
+```
+
+```{r}
+world_coffee_inner <- inner_join <- inner_join(world, coffee_data, by = "name_long")
+```
+
+```{r}
+if(nrow(world_coffee_inner) < nrow(coffee_data)) {
+  warning("inner join does not match original data, potential data loss during join")
+} #checking if data was lost in inner transforamtion 
+```
+
+```{r}
+setdiff(coffee_data$name_long, world$name_long) #checking which data got excluded in inner 
+```
+
+```{r}
+drc <- stringr::str_subset(world$name_long, "Dem*. +Congo")
+
+coffee_data$name_long[stringr::str_detect(coffee_data$name_long, "Congo")] <- drc 
+```
+
+```{r}
+tm_shape(world_coffee_inner) +
+  tm_polygons(fill = "coffee_production_2017",
+              title = "Coffee production (2017)") + 
+  tm_layout(legend.outside = TRUE)
+```
+
+```{r}
+coffee_world <- left_join(coffee_data, world, by = "name_long")
+class(coffee_world) 
+```
+
+```{nrow(world)}
+```
+
+`{library(spData)}`
